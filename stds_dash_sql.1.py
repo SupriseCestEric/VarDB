@@ -355,7 +355,7 @@ def update_notes(n_clicks, drpdown ,input_box):
 
 @app.callback(
     Output("dummy2", "children"), #needed for function, output really does to text file
-    Input('button2','n_clicks'),
+    Input('button2','n_clicks'), prevent_initial_call=True),
     State('drpdown','value')) #see above, comment manager takes dropdown as input
 
 def remove_outlier(n_clicks, drpdown):
