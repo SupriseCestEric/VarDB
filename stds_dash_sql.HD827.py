@@ -109,9 +109,7 @@ def get_sql():
     "chr7_6022626_C_T_snp_1",\
     "chr7_6026988_G_A_snp_1",\
     "chr7_55241707_G_A_snp_1",\
-    "chr7_55242464_AGGAATTAAGAGAAGC_A_del_15",\
     "chr7_55249063_G_A_snp_1",\
-    "chr7_55249071_C_T_snp_1",\
     "chr7_55259515_T_G_snp_1",\
     "chr7_106508978_A_G_snp_1",\
     "chr7_116339847_GT_G_del_1",\
@@ -128,6 +126,7 @@ def get_sql():
     "chr9_5050706_C_T_snp_1",\
     "chr9_35074917_T_C_snp_1",\
     "chr9_98209594_G_A_snp_1",\
+    "chr9_98211548_TG_T_del_1",\
     "chr9_98278975_C_T_snp_1",\
     "chr9_135802659_C_T_snp_1",\
     "chr9_139391636_G_A_snp_1",\
@@ -164,7 +163,6 @@ def get_sql():
     "chr13_32936646_T_C_snp_1",\
     "chr13_48916887_A_G_snp_1",\
     "chr13_49051481_T_A_snp_1",\
-    "chr14_45624688_G_A_snp_1",\
     "chr14_45645974_A_G_snp_1",\
     "chr14_68290372_T_G_snp_1",\
     "chr14_105241378_C_T_snp_1",\
@@ -197,7 +195,6 @@ def get_sql():
     "chr17_29553485_G_A_snp_1",\
     "chr17_37650892_C_T_snp_1",\
     "chr17_37879588_A_G_snp_1",\
-    "chr17_37879762_G_A_snp_1",\
     "chr17_41234451_G_A_snp_1",\
     "chr17_41251931_G_A_snp_1",\
     "chr17_62007498_A_G_snp_1",\
@@ -283,10 +280,11 @@ def get_sql():
     tabledf['afreq'] = tabledf['afreq'].astype(float)
     tabledf['afreq'] = 100*(tabledf['afreq'])
     tabledf['norm_count'] = tabledf['norm_count'].fillna(0)
+    tabledf['norm_count'] = 1000000*(tabledf['norm_count'])
     tabledf['afreq_normcount'] = tabledf['afreq'] + tabledf['norm_count']
     tabledf['sd'] = tabledf.groupby('variant').afreq_normcount.transform('std')
-    tabledf['upper_bound'] = tabledf['afreq_normcount'] + 3*(tabledf['sd'])
-    tabledf['lower_bound'] = tabledf['afreq_normcount'] - 3*(tabledf['sd'])
+    tabledf['upper_bound (3SD)'] = tabledf['afreq_normcount'] + 3*(tabledf['sd'])
+    tabledf['lower_bound (3SD)'] = tabledf['afreq_normcount'] - 3*(tabledf['sd'])
     tabledf = tabledf.drop('afreq_normcount', axis=1)
     return(tabledf)
 
@@ -294,33 +292,30 @@ def get_sql():
 
 def make_table(): # this needs to create 3 tables: one with the complete output from SQL, one aggregated to have means and SD calculated for small variants, and one similar but for RNA
     tabledf = get_sql()
-    tabledf1 = tabledf.groupby('variant', as_index=False).agg({'samplename': 'nunique', 'coverage': ['mean'], 'afreq': ['mean'], 'trname': pd.Series.mode, 'HGVSc': pd.Series.mode, 'HGVSp':pd.Series.mode, 'filedate': ['max'], 'gene': pd.Series.mode, 'sd': ['mean'], 'upper_bound': ['mean'], 'lower_bound':['mean']})
+    tabledf1 = tabledf.groupby('variant', as_index=False).agg({'samplename': 'nunique', 'coverage': ['mean'], 'afreq': ['mean'], 'trname': pd.Series.mode, 'HGVSc': pd.Series.mode, 'HGVSp':pd.Series.mode, 'filedate': ['max'], 'gene': pd.Series.mode, 'sd': ['mean'], 'upper_bound (3SD)': ['mean'], 'lower_bound (3SD)':['mean']})
     tabledf1.columns = tabledf1.columns.droplevel(1)
-    tabledf2 = tabledf.groupby('variant', as_index=False).agg({'samplename': 'nunique', 'coverage': ['mean'], 'norm_count': ['mean'], 'trname': pd.Series.mode, 'HGVSc': pd.Series.mode, 'HGVSp':pd.Series.mode, 'filedate': ['max'], 'gene': pd.Series.mode, 'sd': ['mean'], 'upper_bound': ['mean'], 'lower_bound':['mean']})
+    tabledf2 = tabledf.groupby('variant', as_index=False).agg({'samplename': 'nunique', 'coverage': ['mean'], 'norm_count': ['mean'], 'trname': pd.Series.mode, 'HGVSc': pd.Series.mode, 'HGVSp':pd.Series.mode, 'filedate': ['max'], 'gene': pd.Series.mode, 'sd': ['mean'], 'upper_bound (3SD)': ['mean'], 'lower_bound (3SD)':['mean']})
     tabledf2.columns = tabledf2.columns.droplevel(1)
-    neworder = ['variant','gene','afreq', 'norm_count','sd', 'upper_bound', 'lower_bound','coverage','trname','HGVSc','HGVSp','samplename']
-    neworder1 = ['variant','gene','afreq','sd', 'upper_bound', 'lower_bound','coverage','trname','HGVSc','HGVSp','samplename']
-    neworder2 = ['variant','gene','norm_count','sd', 'upper_bound', 'lower_bound','coverage','trname','HGVSc','HGVSp','samplename']
+    neworder = ['variant','gene','afreq', 'norm_count','sd', 'upper_bound (3SD)', 'lower_bound (3SD)','coverage','trname','HGVSc','HGVSp','samplename']
+    neworder1 = ['variant','gene','afreq','sd', 'upper_bound (3SD)', 'lower_bound (3SD)','coverage','trname','HGVSc','HGVSp','samplename']
+    neworder2 = ['variant','gene','norm_count','sd', 'upper_bound (3SD)', 'lower_bound (3SD)','coverage','trname','HGVSc','HGVSp','samplename']
     tabledf = tabledf[neworder]
     tabledf1 = tabledf1[neworder1]
     tabledf2 = tabledf2[neworder2]
     tabledf1 = tabledf1[tabledf1['variant'].str.startswith('chr')]
     tabledf2 = tabledf2[~tabledf2['variant'].str.startswith('chr')]
-    tabledf = tabledf.applymap(lambda x: round(x, 4) if isinstance(x, (int, float)) else x)
+    tabledf = tabledf.applymap(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
     tabledf1 = tabledf1.applymap(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
-    tabledf2 = tabledf2.applymap(lambda x: round(x, 4) if isinstance(x, (int, float)) else x)
+    tabledf2 = tabledf2.applymap(lambda x: round(x, 0) if isinstance(x, (int, float)) else x)
     # Needs to be jsonized to store in an empty div to gain speed, otherwise you are stuck building the dataframes 0 and 1 in each callback, which is expensive.
-    return tabledf.to_json(double_precision = 4), tabledf1.to_json(double_precision = 2), tabledf2.to_json(double_precision = 4)
+    return tabledf.to_json(double_precision = 4), tabledf1.to_json(double_precision = 2), tabledf2.to_json(double_precision = 0)
 
 
 #create the app layout
 app = dash.Dash(__name__)
 
 VALID_USERNAME_PASSWORD_PAIRS = { # login credentials
-    '##': '',
-    '##': '',
-    '##': '',
-    '##': ''
+    '#####':'#####'
 }
 
 auth = dash_auth.BasicAuth(
@@ -337,8 +332,8 @@ def serve_layout():
     t2 = pd.read_json(tab2)
     t0 = t0.applymap(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
     t1 = t1.applymap(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
-    t2 = t2.applymap(lambda x: round(x, 4) if isinstance(x, (int, float)) else x)
-    sig_tab = pd.DataFrame({'Field':["CQ Blancs","Couverture > 1500","Uniformité","PhD \#1", "PhD \#2", "MD Conseil"],'Value':["PASS  /  FAIL","PASS  /  FAIL","PASS  /  FAIL","_________________","_________________","_________________"]})
+    t2 = t2.applymap(lambda x: round(x, 0) if isinstance(x, (int, float)) else x)
+    sig_tab = pd.DataFrame({'Field':["CQ Blancs","Couverture > 1500","Uniformité","PhD \#1", "PhD \#2", "MD Conseil"],'Value':["PASS  /  FAIL","PASS  /  FAIL","PASS  /  FAIL","___________________________________________________","___________________________________________________","___________________________________________________"]})
     return html.Div(children=[
     #First is a title and a refresh button
     #Then a datatable with selectable rows for later graphs with callback
@@ -354,14 +349,14 @@ def serve_layout():
         style_data_conditional=[
         {
             'if': {
-                'filter_query':'{afreq} < {lower_bound}',
+                'filter_query':'{afreq} < {lower_bound (3SD)}',
                 'column_id':'afreq'
             },
             'backgroundColor': '#85144b',
             'color':'white'
         }, {
             'if': {
-                'filter_query': '{afreq} > {upper_bound}',
+                'filter_query': '{afreq} > {upper_bound (3SD)}',
                 'column_id':'afreq'
             },
             'backgroundColor': '#85144b',
@@ -374,14 +369,14 @@ def serve_layout():
         style_data_conditional=[
         {
             'if': {
-                'filter_query':'{norm_count} < {lower_bound}',
+                'filter_query':'{norm_count} < {lower_bound (3SD)}',
                 'column_id':'norm_count'
             },
             'backgroundColor': '#85144b',
             'color':'white'
         }, {
             'if': {
-                'filter_query': '{norm_count} > {upper_bound}',
+                'filter_query': '{norm_count} > {upper_bound (3SD)}',
                 'column_id':'norm_count'
             },
             'backgroundColor': '#85144b',
@@ -396,6 +391,8 @@ def serve_layout():
         }]),
     html.Br(),
     # add the conditionnal styling to allele frequencies that are out-of-bounds (3SD)
+    html.Div(id='output-container-button2',children='No comments to display'),
+    html.Br(),
     html.H2(children="Tableaux Complets des variants"),
     dash_table.DataTable(id = 'table-2',
         columns=[{'name':i, 'id':i, 'deletable': False} for i in t0.columns if i not in ['id', 'afreqsd','normcountsd']],
@@ -403,14 +400,14 @@ def serve_layout():
         style_data_conditional=[
         {
             'if': {
-                'filter_query':'{afreq} < {lower_bound}',
+                'filter_query':'{afreq} < {lower_bound (3SD)}',
                 'column_id':'afreq'
             },
             'backgroundColor': '#85144b',
             'color':'white'
         }, {
             'if': {
-                'filter_query': '{afreq} > {upper_bound}',
+                'filter_query': '{afreq} > {upper_bound (3SD)}',
                 'column_id':'afreq'
             },
             'backgroundColor': '#85144b',
@@ -423,14 +420,14 @@ def serve_layout():
         style_data_conditional=[
         {
             'if': {
-                'filter_query':'{norm_count} < {lower_bound}',
+                'filter_query':'{norm_count} < {lower_bound (3SD)}',
                 'column_id':'norm_count'
             },
             'backgroundColor': '#85144b',
             'color':'white'
         }, {
             'if': {
-                'filter_query': '{norm_count} > {upper_bound}',
+                'filter_query': '{norm_count} > {upper_bound (3SD)}',
                 'column_id':'norm_count'
             },
             'backgroundColor': '#85144b',
@@ -440,9 +437,10 @@ def serve_layout():
     #dcc.Graph(id = 'subplot-div', style={'width': '250vh'}),
     html.Div(dcc.Input(id='input-box', type='text')), #input box for comments
     html.Button('Submit', id='button'),
-    html.Div(id='output-container-button2',children='No comments to display'),
     html.Br(),
     html.Div(id='newlines-container',children='\n\n\n\n'),
+    html.Br(),
+    html.Br(),
     html.Button('Delete', id='button2'), # Delete will add to a list of exclusions that filters out any unwanted data when reading in from SQL
     html.Br(),
     html.H2(children="Graphiques Levey-Jennings"),
@@ -534,16 +532,31 @@ def update_graph(data, selected_rows, tab0):
     var = data[selected_rows[0]]['variant'] if selected_rows else "chr1_11181327_C_T_snp_1" #default selection
     data_long = pd.read_json(tab0).copy() #read the json
     #print(data_long)
+    sset = pd.DataFrame(data_long['samplename'].unique(), columns=['samplename']) # required to get null value samples
     is_var = data_long['variant'] == var #get only the active variant
     filt_dat = data_long[is_var]
-    mn = filt_dat['afreq'].tolist()
+    value_vect = [] # stores the sample-wise values for Afreq to check if missing samples. 
+    #print(sset)
+    for index, row in sset.iterrows():
+        #print(row['samplename'])
+        label = row['samplename']
+        if label in filt_dat['samplename'].tolist():
+            a = filt_dat.loc[filt_dat['samplename']==label, 'afreq'].values[0]
+            value_vect.append(a)
+        else:
+            value_vect.append(0)
+    sset['afreq'] = value_vect
+    #print(sset)
+    mn = sset['afreq'].tolist()
+    #print(mn)
+    mn1 = [num for num in mn if num]
     if len(filt_dat.index) >50: # if more than 50 samples, get the latest 50 (df is sorted by date)
         filt_dat = filt_dat[-50:]
-    sdpos1 = st.median(mn) + np.std(mn)
-    sdneg1 = st.median(mn) -(np.std(mn))
-    sdpos2 = st.median(mn) + 3*(np.std(mn))
-    sdneg2 = st.median(mn) - 3*(np.std(mn))
-    figure = go.Figure(data = go.Scatter(x = filt_dat['samplename'], y = mn[-50:], mode='lines+markers', name = 'Value'))
+    sdpos1 = st.median(mn1) + np.std(mn1)
+    sdneg1 = st.median(mn1) -(np.std(mn1))
+    sdpos2 = st.median(mn1) + 3*(np.std(mn1))
+    sdneg2 = st.median(mn1) - 3*(np.std(mn1))
+    figure = go.Figure(data = go.Scatter(x = sset['samplename'], y = mn[-50:], mode='lines+markers', name = 'Value'))
     figure.add_hline(y = sdpos1, line_width=2, line_color="green", name = '+1SD')
     figure.add_hline(y = sdneg1, line_width=2, line_color="green", name = '-1SD')
     figure.add_hline(y = sdpos2, line_width=2, line_color="red", name = '+3SD')
@@ -577,16 +590,30 @@ def update_graph2(data, selected_rows, tab0):
         selected_rows = []
     var = data[selected_rows[0]]['variant'] if selected_rows else "LMNA(2) - NTRK1(11)" #default selection
     data_long = pd.read_json(tab0).copy() #read the json
+    sset = pd.DataFrame(data_long['samplename'].unique(), columns=['samplename']) # required to get null value samples
     is_var = data_long['variant'] == var #get only the active variant
     filt_dat = data_long[is_var]
-    mn = filt_dat['norm_count'].tolist()
+    value_vect = [] # stores the sample-wise values for Afreq to check if missing samples.
+    for index, row in sset.iterrows():
+        #print(row['samplename'])
+        label = row['samplename']
+        if label in filt_dat['samplename'].tolist():
+            a = filt_dat.loc[filt_dat['samplename']==label, 'norm_count'].values[0]
+            value_vect.append(a)
+        else:
+            value_vect.append(0)
+    sset['norm_count'] = value_vect
+    #print(sset)
+    mn = sset['norm_count'].tolist()
+    #print(mn)
+    mn1 = [num for num in mn if num]
     if len(filt_dat.index) >50: # if more than 50 samples, get the latest 50 (df is sorted by date)
         filt_dat = filt_dat[-50:]
-    sdpos1 = st.median(mn) + np.std(mn)
-    sdneg1 = st.median(mn) -(np.std(mn))
-    sdpos2 = st.median(mn) + 3*(np.std(mn))
-    sdneg2 = st.median(mn) - 3*(np.std(mn))
-    figure = go.Figure(data = go.Scatter(x = filt_dat['samplename'], y = mn[-50:], mode='lines+markers', name = 'Value'))
+    sdpos1 = st.median(mn1) + np.std(mn1)
+    sdneg1 = st.median(mn1) -(np.std(mn1))
+    sdpos2 = st.median(mn1) + 3*(np.std(mn1))
+    sdneg2 = st.median(mn1) - 3*(np.std(mn1))
+    figure = go.Figure(data = go.Scatter(x = sset['samplename'], y = mn[-50:], mode='lines+markers', name = 'Value'))
     figure.add_hline(y = sdpos1, line_width=2, line_color="green", name = '+1SD')
     figure.add_hline(y = sdneg1, line_width=2, line_color="green", name = '-1SD')
     figure.add_hline(y = sdpos2, line_width=2, line_color="red", name = '+3SD')
@@ -613,13 +640,13 @@ def update_table2(sel_value, tab0, tab1):
     missing = list(set(t1['variant'].tolist()) - set(filt_dat['variant'].tolist()))
     if missing:
         for var in missing:
-            new_row = {'variant':var,'gene':'','afreq':0,'norm_count':0,'sd':0,'upper_bound':0,'lower_bound':0,'coverage':0,'trname':'','HGVSc':'','HGVSp':'','samplename':sel_value}
+            new_row = {'variant':var,'gene':'','afreq':0,'norm_count':0,'sd':0,'upper_bound (3SD)':0,'lower_bound (3SD)':0,'coverage':0,'trname':'','HGVSc':'','HGVSp':'','samplename':sel_value}
             filt_dat = filt_dat.append(new_row, ignore_index=True)
     filt_dat = filt_dat.sort_values('variant')
     #print(filt_dat['variant'].tolist())
     #print(t1['variant'].tolist())
-    filt_dat['upper_bound'] = t1['upper_bound'].tolist()
-    filt_dat['lower_bound'] = t1['lower_bound'].tolist()
+    filt_dat['upper_bound (3SD)'] = t1['upper_bound (3SD)'].tolist()
+    filt_dat['lower_bound (3SD)'] = t1['lower_bound (3SD)'].tolist()
     return filt_dat.to_dict('records')
 
 @app.callback(
@@ -630,13 +657,13 @@ def update_table2(sel_value, tab0, tab1):
 
 def update_table3(sel_value, tab0, tab2):
     t0 = pd.read_json(tab0)
-    t0 = t0.applymap(lambda x: round(x, 2) if isinstance(x, (int, float)) else x) #when reading from json, floats are 15 decimal points long for some reason.... need to round
+    t0 = t0.applymap(lambda x: round(x, 0) if isinstance(x, (int, float)) else x) #when reading from json, floats are 15 decimal points long for some reason.... need to round
     t2 = pd.read_json(tab2)
-    t2 = t2.applymap(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
+    t2 = t2.applymap(lambda x: round(x, 0) if isinstance(x, (int, float)) else x)
     filt_dat = t0[~t0['variant'].str.startswith('chr')]
     filt_dat = filt_dat[filt_dat['samplename'] == sel_value].copy()
-    filt_dat['upper_bound'] = t2['upper_bound'].tolist()
-    filt_dat['lower_bound'] = t2['lower_bound'].tolist()
+    filt_dat['upper_bound (3SD)'] = t2['upper_bound (3SD)'].tolist()
+    filt_dat['lower_bound (3SD)'] = t2['lower_bound (3SD)'].tolist()
     return filt_dat.to_dict('records')
 
 
@@ -661,12 +688,12 @@ def update_fail1(sel_value, tab0, tab1):
         for var in missing:
             idx = t1.index[t1['variant']==var].tolist()
             label = t1.loc[idx,'gene']
-            new_row = {'variant':var,'gene':label,'afreq':0,'norm_count':0,'sd':0,'upper_bound':0,'lower_bound':0,'coverage':0,'trname':'','HGVSc':'','HGVSp':'','samplename':sel_value}
+            new_row = {'variant':var,'gene':label,'afreq':0,'norm_count':0,'sd':0,'upper_bound (3SD)':0,'lower_bound (3SD)':0,'coverage':0,'trname':'','HGVSc':'','HGVSp':'','samplename':sel_value}
             filt_dat = filt_dat.append(new_row, ignore_index=True)
     filt_dat = filt_dat.sort_values('variant')
-    filt_dat['upper_bound'] = t1['upper_bound'].tolist()
-    filt_dat['lower_bound'] = t1['lower_bound'].tolist()
-    filt_dat = filt_dat.loc[(filt_dat['afreq']<=filt_dat['lower_bound'])|(filt_dat['afreq']>=filt_dat['upper_bound'])]
+    filt_dat['upper_bound (3SD)'] = t1['upper_bound (3SD)'].tolist()
+    filt_dat['lower_bound (3SD)'] = t1['lower_bound (3SD)'].tolist()
+    filt_dat = filt_dat.loc[(filt_dat['afreq']<=filt_dat['lower_bound (3SD)'])|(filt_dat['afreq']>=filt_dat['upper_bound (3SD)'])]
     return filt_dat.to_dict('records')
 
 @app.callback(
@@ -677,14 +704,14 @@ def update_fail1(sel_value, tab0, tab1):
 
 def update_fail2(sel_value, tab0, tab2):
     t0 = pd.read_json(tab0)
-    t0 = t0.applymap(lambda x: round(x, 4) if isinstance(x, (int, float)) else x) #when reading from json, floats are 15 decimal points long for some reason.... need to round
+    t0 = t0.applymap(lambda x: round(x, 0) if isinstance(x, (int, float)) else x) #when reading from json, floats are 15 decimal points long for some reason.... need to round
     t2 = pd.read_json(tab2)
-    t2 = t2.applymap(lambda x: round(x, 4) if isinstance(x, (int, float)) else x)
+    t2 = t2.applymap(lambda x: round(x, 0) if isinstance(x, (int, float)) else x)
     filt_dat = t0[~t0['variant'].str.startswith('chr')]
     filt_dat = filt_dat[filt_dat['samplename'] == sel_value].copy()
-    filt_dat['upper_bound'] = t2['upper_bound'].tolist()
-    filt_dat['lower_bound'] = t2['lower_bound'].tolist()
-    filt_dat = filt_dat.loc[(filt_dat['norm_count']<=filt_dat['lower_bound'])|(filt_dat['norm_count']>=filt_dat['upper_bound'])]
+    filt_dat['upper_bound (3SD)'] = t2['upper_bound (3SD)'].tolist()
+    filt_dat['lower_bound (3SD)'] = t2['lower_bound (3SD)'].tolist()
+    filt_dat = filt_dat.loc[(filt_dat['norm_count']<=filt_dat['lower_bound (3SD)'])|(filt_dat['norm_count']>=filt_dat['upper_bound (3SD)'])]
     return filt_dat.to_dict('records')
 
 
