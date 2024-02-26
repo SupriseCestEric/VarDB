@@ -26,7 +26,7 @@ import csv
 #read the data from the mysql database with the hd200 samples
 def get_sql():
     #Use MySQL Connector for establishing link to DB in function, so that we may update live to the user
-    mydb = mysql.connector.connect(host="localhost", database = 'HD827',user="", passwd="")
+    mydb = mysql.connector.connect(host="localhost", database = 'HD827',user="####", passwd="####")
     with open('exclusions.tsv') as f:
         exclusions = f.readlines()
     query = "SELECT CallData.pass_filter,  CallData.afreq,  CallData.coverage,  CallData.norm_count,  CallData.sample, VarData.name, RunInfo.IonWF_version, RunInfo.name, RunInfo.filedate, Transcripts.name , HGVS.transcript, HGVS.HGVSc, HGVS.HGVSp, Genes.name FROM VarData LEFT JOIN HGVS ON HGVS.id = VarData.hgvs LEFT JOIN CallData ON VarData.id = CallData.variant LEFT JOIN RunInfo ON CallData.sample = RunInfo.id LEFT JOIN Transcripts ON Transcripts.id = HGVS.transcript LEFT JOIN Genes ON VarData.gene = Genes.id;"
@@ -37,7 +37,7 @@ def get_sql():
     df.columns = ['pass_filter','afreq','coverage','norm_count','sample','variant','IonWF_version','samplename','filedate','trname','transcript','HGVSc', 'HGVSp','gene']
 
     #get only HD200 and seracare samples
-    df = df[df['samplename'].str.contains("HD827_SSEQ", na=False)]
+    df = df[df['samplename'].str.contains("HD827_SSEQ|HD832_SSEQ", na=False)]
     df = df[~df['samplename'].isin(exclusions)]
     #Get the variants of interest
 
@@ -315,7 +315,10 @@ def make_table(): # this needs to create 3 tables: one with the complete output 
 app = dash.Dash(__name__)
 
 VALID_USERNAME_PASSWORD_PAIRS = { # login credentials
-    '#####':'#####'
+    'EAllain': 'Vitalite1',
+    'NCrapoulet': 'Vitalite2',
+    'PPRobichaud': 'Vitalite3',
+    'ROuellette': 'Vitalite4'
 }
 
 auth = dash_auth.BasicAuth(
@@ -333,7 +336,7 @@ def serve_layout():
     t0 = t0.applymap(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
     t1 = t1.applymap(lambda x: round(x, 2) if isinstance(x, (int, float)) else x)
     t2 = t2.applymap(lambda x: round(x, 0) if isinstance(x, (int, float)) else x)
-    sig_tab = pd.DataFrame({'Field':["CQ Blancs","Couverture > 1500","Uniformité","PhD \#1", "PhD \#2", "MD Conseil"],'Value':["PASS  /  FAIL","PASS  /  FAIL","PASS  /  FAIL","___________________________________________________","___________________________________________________","___________________________________________________"]})
+    sig_tab = pd.DataFrame({'Field':["CQ Blancs","Couverture > 800","Uniformité","PhD \#1", "PhD \#2", "MD Conseil"],'Value':["PASS  /  FAIL","PASS  /  FAIL","PASS  /  FAIL","___________________________________________________","___________________________________________________","___________________________________________________"]})
     return html.Div(children=[
     #First is a title and a refresh button
     #Then a datatable with selectable rows for later graphs with callback
@@ -345,7 +348,7 @@ def serve_layout():
     html.H2(children="Variants n'ayant pas passé vérification CQ:"),
     dash_table.DataTable(id = 'table-fail', # table for small variants not passing QC
         columns=[{'name':i, 'id':i, 'deletable': False} for i in t0.columns if i not in ['id', 'afreqsd','normcountsd']],
-        page_size=10,
+        page_size=25,
         style_data_conditional=[
         {
             'if': {
@@ -803,4 +806,4 @@ def remove_outlier(n_clicks, drpdown):
 #run on this server with IP
 
 if __name__ == '__main__':
-    app.run_server(debug=False, host='10.111.243.16', port=8060)
+    app.run_server(debug=False, host='10.XXX.XXX.XXX', port=8060)
